@@ -17,8 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/md5"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"hash"
+	"io"
+	"math/big"
+	"os"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
@@ -37,6 +45,58 @@ func main() {
 	}
 }
 
+// generate keys
+func (t *SimpleChaincode) KeyGen() ([]byte, error) {
+
+	pubkeyCurve := elliptic.P256() //see http://golang.org/pkg/crypto/elliptic/#P256
+
+	privatekey := new(ecdsa.PrivateKey)
+	privatekey, err := ecdsa.GenerateKey(pubkeyCurve, rand.Reader) // this generates a public & private key pair
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	var pubkey ecdsa.PublicKey
+	pubkey = privatekey.PublicKey
+
+	fmt.Println("Private Key :")
+	fmt.Printf("%x \n", privatekey)
+
+	fmt.Println("Public Key :")
+	fmt.Printf("%x \n", pubkey)
+
+	// Sign ecdsa style
+
+	var h hash.Hash
+	h = md5.New()
+	r := big.NewInt(0)
+	s := big.NewInt(0)
+
+	io.WriteString(h, "This is a message to be signed and verified by ECDSA!")
+	signhash := h.Sum(nil)
+
+	r, s, serr := ecdsa.Sign(rand.Reader, privatekey, signhash)
+	if serr != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	signature := r.Bytes()
+	signature = append(signature, s.Bytes()...)
+
+	fmt.Printf("Signature : %x\n", signature)
+
+	// Verify
+	verifystatus := ecdsa.Verify(&pubkey, signhash, r, s)
+	fmt.Println(verifystatus) // should be true
+
+	var keypair = []byte(fmt.Sprintf("%x", privatekey) + "," + fmt.Sprintf("%x", pubkey))
+
+	return keypair, nil
+}
+
 // Init resets all the things
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if len(args) != 1 {
@@ -51,10 +111,14 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	fmt.Println("invoke is running " + function)
 
 	// Handle different functions
-	if function == "init" {													//initialize the chaincode state, used as reset
+	if function == "init" { //initialize the chaincode state, used as reset
 		return t.Init(stub, "init", args)
 	}
-	fmt.Println("invoke did not find func: " + function)					//error
+	if function == "keygen" {
+		return t.KeyGen()
+	}
+
+	fmt.Println("invoke did not find func: " + function) //error
 
 	return nil, errors.New("Received unknown function invocation: " + function)
 }
@@ -64,11 +128,11 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	fmt.Println("query is running " + function)
 
 	// Handle different functions
-	if function == "dummy_query" {											//read a variable
-		fmt.Println("hi there " + function)						//error
-		return nil, nil;
+	if function == "dummy_query" { //read a variable
+		fmt.Println("hi there " + function) //error
+		return nil, nil
 	}
-	fmt.Println("query did not find func: " + function)						//error
+	fmt.Println("query did not find func: " + function) //error
 
 	return nil, errors.New("Received unknown function query: " + function)
 }
