@@ -175,8 +175,8 @@ func (t *SimpleChaincode) getRecord(stub shim.ChaincodeStubInterface, args []str
 	var key, value, who, jsonResp string
 	var err error
 
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting name of the key to query")
+	if len(args) != 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting name of the key to query, and user making the query")
 	}
 
 	key = args[0]
