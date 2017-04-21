@@ -130,6 +130,8 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 		return t.write(stub, args)
 	} else if function == "keygen" {
 		return t.KeyGen(stub, args)
+	} else if function == "request" {
+		return t.getRecord(stub, args)
 	}
 	fmt.Println("invoke did not find func: " + function)
 
@@ -166,6 +168,35 @@ func (t *SimpleChaincode) write(stub shim.ChaincodeStubInterface, args []string)
 		return nil, err
 	}
 	return nil, nil
+}
+
+// getRecord - query function to read key/value pair, record the access
+func (t *SimpleChaincode) getRecord(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var key, value, who, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting name of the key to query")
+	}
+
+	key = args[0]
+	who = args[1]
+
+	//update the ledger with the access request
+	value = fmt.Sprintf("%s requested access to document %s", who, key)
+
+	err = stub.PutState(key, []byte(value))
+	if err != nil {
+		return nil, err
+	}
+
+	valAsbytes, err := stub.GetState(key)
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + key + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return valAsbytes, nil
 }
 
 // read - query function to read key/value pair
