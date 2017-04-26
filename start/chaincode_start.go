@@ -184,8 +184,9 @@ func (t *SimpleChaincode) getRecord(stub shim.ChaincodeStubInterface, args []str
 
 	//update the ledger with the access request
 	value = fmt.Sprintf("%s requested access to document %s", who, key)
+	accessKey := fmt.Sprintf("access:%s", key)
 
-	err = stub.PutState(key, []byte(value))
+	err = stub.PutState(accessKey, []byte(value))
 	if err != nil {
 		return nil, err
 	}
